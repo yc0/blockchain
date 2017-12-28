@@ -1,16 +1,18 @@
 package blockchain
 
 import (
+	"sync"
 	"crypto/sha256"
 	"fmt"
-	"math"
 	"bytes"
 	"math/big"
+	"runtime"
 )
 
 const (
 	targetBits = 16
-	maxNonce = math.MaxInt64
+	maxNonce = 1<<24 - 1
+	maxConcurrencies = 32
 )
 
 type Proof_Of_Work struct {
@@ -46,22 +48,69 @@ func (pow *Proof_Of_Work) prepareData(nonce int) []byte {
  run performs a proof-of-work
  **/
 func (pow *Proof_Of_Work) Run() (int,[]byte) {
+	runtime.GOMAXPROCS(maxConcurrencies)
 	var hashInt big.Int
-	var hash [32]byte
-	nonce := 0
+	var locker sync.Once
+	isDone := false // a sort of optimisitic lock
+	c_n := make(chan int)
+	// done := make(chan bool, maxConcurrencies-1)
 	fmt.Printf("Mining the block containing '%s' \n",pow.block.Data)
 	defer fmt.Printf("\n\n")
-	for nonce < maxNonce {
-		data := pow.prepareData(nonce)
-		hash = sha256.Sum256(data)
-		fmt.Printf("\r%x", hash)
-		hashInt.SetBytes(hash[:])
-		if hashInt.Cmp(pow.target) == -1 { // if hashInt < target -->valid	
-			break
-		} else {
-			nonce++
-		}
+
+	step := (1<<16)
+	size := maxNonce/step
+	mod := maxNonce%step
+
+	concurrentGoroutines := make(chan struct{}, maxConcurrencies)
+	for i := 0; i < maxConcurrencies; i++ {
+		concurrentGoroutines <- struct {}{}
 	}
+	for i:= 0; i <=size; i+=1 {
+		min := i*step
+		var max int
+		if min+mod == maxNonce {
+			max = maxNonce
+		} else {
+			max = step*(i+1)-1
+		}
+		go func(min, max int, cn chan int) {
+			<-concurrentGoroutines
+			for i:=min; i <= max && !isDone; i++ {
+				data := pow.prepareData(i)
+				h  := sha256.Sum256(data)
+				// fmt.Printf("\r%x", hash)
+				hashInt.SetBytes(h[:])
+				if hashInt.Cmp(pow.target) == -1 {
+					locker.Do(func() {
+						cn <- i
+						defer close(cn)
+					})
+					// for {
+					// 	select {
+					// 	case cn <- i:
+					// 		defer close(cn)
+					// 		return
+					// 	case <- done:
+					// 		return
+					// 	}
+					// }
+				}
+			}
+			// done <- true
+		}(min, max, c_n)
+		concurrentGoroutines <- struct{}{}
+	}
+	fmt.Println("awaiting..")
+	nonce := <-c_n
+	// for i := 0; i < maxConcurrencies-1; i++ {
+	// 	done <- true
+	// }
+	// defer close(done)
+	isDone = true
+	fmt.Printf("%d ::", nonce)
+	data := pow.prepareData(nonce)
+	hash := sha256.Sum256(data)
+	fmt.Printf("%x \n", hash)
 	return nonce, hash[:]
 }
 
@@ -74,6 +123,5 @@ func (pow *Proof_Of_Work) Validate() bool {
 	data := pow.prepareData(pow.block.Nonce)
 	hash := sha256.Sum256(data)
 	hashInt.SetBytes(hash[:])
-
 	return hashInt.Cmp(pow.target) == -1
 }
