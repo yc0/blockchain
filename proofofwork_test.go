@@ -1,4 +1,4 @@
-package blockchain
+package main
 
 import (
 	"fmt"
@@ -6,8 +6,6 @@ import (
 )
 
 func TestPow(t *testing.T) {
-	var pow *Proof_Of_Work
-	pow = pow.New(nil)
-	fmt.Printf("%x\n",pow.target)
-	
+	pow := NewProofOfWork(nil)
+	fmt.Printf("%x\n", pow.target)
 }

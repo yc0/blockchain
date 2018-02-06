@@ -1,35 +1,34 @@
-package blockchain
+package main
 
 import (
-	"sync"
+	"bytes"
 	"crypto/sha256"
 	"fmt"
-	"bytes"
 	"math/big"
 	"runtime"
+	"sync"
 )
 
 const (
-	targetBits = 16
-	maxNonce = 1<<24 - 1
+	targetBits       = 20
+	maxNonce         = 1<<24 - 1
 	maxConcurrencies = 32
 )
 
 type Proof_Of_Work struct {
-	block *Block
+	block  *Block
 	target *big.Int // a struct type
 }
 
-func (pow *Proof_Of_Work) New(b *Block) *Proof_Of_Work {
+func NewProofOfWork(b *Block) *Proof_Of_Work {
 	target := big.NewInt(1)
 	target.Lsh(target, uint(256-targetBits)) // sha 256 left shift
-	pow = &Proof_Of_Work{b,target}
-	return pow
+	return &Proof_Of_Work{b, target}
 }
 
 func (pow *Proof_Of_Work) prepareData(nonce int) []byte {
 	/*
-	 * :type nounce: int counter 
+	 * :type nounce: int counter
 	 */
 	data := bytes.Join(
 		[][]byte{
@@ -43,41 +42,40 @@ func (pow *Proof_Of_Work) prepareData(nonce int) []byte {
 	return data
 }
 
-
 /**
- run performs a proof-of-work
- **/
-func (pow *Proof_Of_Work) Run() (int,[]byte) {
+run performs a proof-of-work
+**/
+func (pow *Proof_Of_Work) Run() (int, []byte) {
 	runtime.GOMAXPROCS(maxConcurrencies)
 	var hashInt big.Int
 	var locker sync.Once
 	isDone := false // a sort of optimisitic lock
 	c_n := make(chan int)
 	// done := make(chan bool, maxConcurrencies-1)
-	fmt.Printf("Mining the block containing '%s' \n",pow.block.Data)
+	fmt.Printf("Mining the block containing '%s' \n", pow.block.Data)
 	defer fmt.Printf("\n\n")
 
-	step := (1<<16)
-	size := maxNonce/step
-	mod := maxNonce%step
+	step := (1 << 16)
+	size := maxNonce / step
+	mod := maxNonce % step
 
 	concurrentGoroutines := make(chan struct{}, maxConcurrencies)
 	for i := 0; i < maxConcurrencies; i++ {
-		concurrentGoroutines <- struct {}{}
+		concurrentGoroutines <- struct{}{}
 	}
-	for i:= 0; i <=size; i+=1 {
-		min := i*step
+	for i := 0; i <= size; i += 1 {
+		min := i * step
 		var max int
 		if min+mod == maxNonce {
 			max = maxNonce
 		} else {
-			max = step*(i+1)-1
+			max = step*(i+1) - 1
 		}
 		go func(min, max int, cn chan int) {
 			<-concurrentGoroutines
-			for i:=min; i <= max && !isDone; i++ {
+			for i := min; i <= max && !isDone; i++ {
 				data := pow.prepareData(i)
-				h  := sha256.Sum256(data)
+				h := sha256.Sum256(data)
 				// fmt.Printf("\r%x", hash)
 				hashInt.SetBytes(h[:])
 				if hashInt.Cmp(pow.target) == -1 {
@@ -100,14 +98,14 @@ func (pow *Proof_Of_Work) Run() (int,[]byte) {
 		}(min, max, c_n)
 		concurrentGoroutines <- struct{}{}
 	}
-	fmt.Println("awaiting..")
+	// fmt.Println("awaiting..")
 	nonce := <-c_n
 	// for i := 0; i < maxConcurrencies-1; i++ {
 	// 	done <- true
 	// }
 	// defer close(done)
 	isDone = true
-	fmt.Printf("%d ::", nonce)
+	// fmt.Printf("%d ::", nonce)
 	data := pow.prepareData(nonce)
 	hash := sha256.Sum256(data)
 	fmt.Printf("%x \n", hash)

@@ -1,9 +1,9 @@
-package blockchain
+package main
 
 import (
-	"log"
-	"encoding/binary"
 	"bytes"
+	"encoding/binary"
+	"log"
 )
 
 func Int2Hex(num int64) []byte {
