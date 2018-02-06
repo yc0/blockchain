@@ -1,4 +1,4 @@
-package blockchain
+package main
 
 type MerkleTree struct {
 	Left  *MerkleTree
@@ -7,5 +7,5 @@ type MerkleTree struct {
 }
 
 func New(data string) *MerkleTree {
-	return &MerkleTree{nil,[]byte(data),nil}
+	return &MerkleTree{nil, []byte(data), nil}
 }
