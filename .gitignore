@@ -15,3 +15,7 @@
 
 # persistence 
 *.db/
+
+
+# binary
+blockchain

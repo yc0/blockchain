@@ -76,3 +76,23 @@ In levelDB, the data can be only of []byte type, thus we'll use encoding/gob to 
 Meanwhile, official leveldb ported on golang repo says it is still instable, and most importantly, NOBODY contributes to the project for a year. Therefore, I adopt syndtr levelDB version.
 
 In the implmentation, I do not implement transaction as Jeiwan did with boltDB and goroutine. Thus, I persist data through file system structure using folder as blockchain, and filename as blocks.
+
+## Part-4 Transaction
+
+Transactions are the heart of de-centralization and the only purpose of blockchain is to store transactions in a secure and reliable way, so no one could modify them after they are created. 
+
+### General Mechanism
+
+In de-centralization transactions like Bitcoin, payments are realized in completely different way. There are:
+
+> 1. No accounts.
+> 2. No balances.
+> 3. No addresses.
+> 4. No coins.
+> 5. No senders and receivers.
+
+Note that:
+- some outputs are not linked to inputs.
+- In **one transaction**, inputs can reference outputs from multiple transactions.
+- An input must reference an output.
+
