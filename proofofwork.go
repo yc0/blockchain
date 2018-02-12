@@ -33,7 +33,7 @@ func (pow *Proof_Of_Work) prepareData(nonce int) []byte {
 	data := bytes.Join(
 		[][]byte{
 			pow.block.Prev,
-			pow.block.Data,
+			pow.block.HashTransactions(),
 			Int2Hex(pow.block.Timestamp),
 			Int2Hex(int64(targetBits)),
 			Int2Hex(int64(nonce)),
@@ -52,8 +52,8 @@ func (pow *Proof_Of_Work) Run() (int, []byte) {
 	isDone := false // a sort of optimisitic lock
 	c_n := make(chan int)
 	// done := make(chan bool, maxConcurrencies-1)
-	fmt.Printf("Mining the block containing '%s' \n", pow.block.Data)
-	defer fmt.Printf("\n\n")
+	fmt.Printf("Mining the block containing '%x' \n", pow.block.HashTransactions())
+	defer fmt.Printf("\n")
 
 	step := (1 << 16)
 	size := maxNonce / step
